@@ -1,3 +1,7 @@
+// Just a IMDB Rating, that uses another API (useful for ukrainans)
+// Maded on "KP + IMDB rating", that uses kinopoisk API (https://nb557.github.io/plugins/rating.js)
+// Made by ArtZabAZ (TG: @migor1103)
+
 (function () {
     'use strict';
 
@@ -19,7 +23,7 @@
         }
 
         function searchRating() {
-            var url = 'https://imdb.doladu.net.ua/rating?id=' + encodeURIComponent(card.imdb_id); // API url (https://github.com/aartzz/rating-api)
+            var url = 'https://imdb.doladu.net.ua/rating?id=' + encodeURIComponent(card.imdb_id); // API url (Source code: https://github.com/aartzz/rating-api)
             network.clear();
             network.timeout(15000);
             network.silent(url, function (json) {
@@ -30,7 +34,7 @@
                     });
                     return _showRating(movieRating);
                 } else {
-                    showError("Рейтинг IMDB не знайдено.");
+                    showError("IMDB: 404 Not Found.");
                 }
             }, function (a, c) {
                 showError(network.errorDecode(a, c));
@@ -38,7 +42,7 @@
         }
 
         function showError(error) {
-            Lampa.Noty.show('Рейтинг IMDB: ' + error);
+            Lampa.Noty.show('IMDB: ' + error);
         }
 
         function _getCache(movie) {
