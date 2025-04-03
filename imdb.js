@@ -19,7 +19,7 @@
         }
 
         function searchRating() {
-            var url = 'https://imdb.pythonanywhere.com/rating?id=' + encodeURIComponent(card.imdb_id); // proxy URL
+            var url = 'https://imdb.doladu.net.ua/rating?id=' + encodeURIComponent(card.imdb_id); // API url (https://github.com/aartzz/rating-api)
             network.clear();
             network.timeout(15000);
             network.silent(url, function (json) {
