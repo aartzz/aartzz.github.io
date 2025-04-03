@@ -9,7 +9,7 @@
         var network = new Lampa.Reguest();
         var params = {
             id: card.id,
-            cache_time: 60 * 60 * 24 * 1000 // 1 день у мілісекундах
+            cache_time: 60 * 60 * 24 * 1000
         };
         getRating();
 
@@ -23,7 +23,7 @@
         }
 
         function searchRating() {
-            var url = 'https://imdb.doladu.net.ua/rating?id=' + encodeURIComponent(card.imdb_id); // API url (Source code: https://github.com/aartzz/rating-api)
+            var url = 'https://imdb.doladu.net.ua/rating?id=' + encodeURIComponent(card.imdb_id); // API Source code: https://github.com/aartzz/rating-api
             network.clear();
             network.timeout(15000);
             network.silent(url, function (json) {
