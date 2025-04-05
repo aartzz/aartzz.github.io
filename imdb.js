@@ -1,6 +1,7 @@
 // Just a IMDB Rating, that uses another API (useful for ukrainans)
 // Maded on "KP + IMDB rating", that uses kinopoisk API (https://nb557.github.io/plugins/rating.js)
 // Made by ArtZabAZ (TG: @migor1103)
+// Using for my Lampac instance (https://aartzz.github.io/lampac)
 
 (function () {
     'use strict';
