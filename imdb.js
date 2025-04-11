@@ -5,6 +5,8 @@
 (function () {
     'use strict';
 
+    const MDblistApiKey = 'v331ujfep6i6db0n785e5s6zh';
+
     function rating_imdb(card) {
         var network = new Lampa.Reguest();
         var params = {
@@ -23,22 +25,57 @@
         }
 
         function searchRating() {
-            var url = 'https://imdb.doladu.net.ua/rating?id=' + encodeURIComponent(card.imdb_id); // API Source code: https://github.com/aartzz/rating-api
-            network.clear();
-            network.timeout(15000);
-            network.silent(url, function (json) {
-                if (json && json.rating !== undefined) {
-                    var movieRating = _setCache(params.id, {
-                        imdb: json.rating,
-                        timestamp: new Date().getTime()
-                    });
-                    return _showRating(movieRating);
-                } else {
-                    showError("IMDB: 404 Not Found.");
-                }
-            }, function (a, c) {
-                showError(network.errorDecode(a, c));
-            });
+            let mainUrl;
+            if (card.imdb_id) {
+                const type = card.type === 'movie' ? 'movie' : 'show';
+                mainUrl = `https://api.mdblist.com/imdb/${type}/${encodeURIComponent(card.imdb_id)}?apikey=${MDblistApiKey}&append_to_response=keyword&format=json`;
+            }
+
+            const backupUrl = 'https://imdb.doladu.net.ua/rating?id=' + encodeURIComponent(card.imdb_id);
+
+            function fetchRating(url, isMain) {
+                network.clear();
+                network.timeout(15000);
+                network.silent(url, function (json) {
+                    if (json) {
+                        let ratingValue;
+                        if (isMain && json.ratings && json.ratings[0] && json.ratings[0].value !== undefined) {
+                            ratingValue = json.ratings[0].value;
+                        } else if (!isMain && json.rating !== undefined) {
+                            ratingValue = json.rating;
+                        }
+
+                        if (ratingValue !== undefined) {
+                            const movieRating = _setCache(params.id, {
+                                imdb: ratingValue,
+                                timestamp: new Date().getTime()
+                            });
+                            return _showRating(movieRating);
+                        } else if (isMain) {
+                            // Якщо в основному API немає рейтингу, використовуємо резервний
+                            fetchRating(backupUrl, false);
+                        } else {
+                            showError("IMDB: Рейтинг не знайдено.");
+                        }
+                    } else if (isMain) {
+                        fetchRating(backupUrl, false);
+                    } else {
+                        showError("IMDB: Помилка отримання даних.");
+                    }
+                }, function (a, c) {
+                    if (isMain) {
+                        fetchRating(backupUrl, false);
+                    } else {
+                        showError(network.errorDecode(a, c));
+                    }
+                });
+            }
+
+            if (mainUrl) {
+                fetchRating(mainUrl, true);
+            } else {
+                fetchRating(backupUrl, false);
+            }
         }
 
         function showError(error) {
