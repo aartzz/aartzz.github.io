@@ -5,20 +5,26 @@
 (function () {
     'use strict';
 
-    const MDblistApiKey = 'v331ujfep6i6db0n785e5s6zh';
+    const MDblistApiKey = 'v331ujfep6i6db0n785e5s6zh'; // Переконайтеся, що цей ключ дійсний та активний
 
     function rating_imdb(card) {
+        if (!card || !card.imdb_id) {
+            // Lampa.Noty.show('IMDB: imdb_id не знайдено в картці фільму.'); // Розкоментуйте для відладки, якщо потрібно
+            console.log('IMDB Plugin: imdb_id not found in card:', card);
+            return; // Немає сенсу продовжувати без imdb_id
+        }
+
         var network = new Lampa.Reguest();
         var params = {
-            id: card.id,
-            cache_time: 60 * 60 * 24 * 1000
+            id: card.id, // Використовується як ключ для кешу (унікальний ID картки в LAMPA)
+            cache_time: 60 * 60 * 24 * 1000 // 24 години
         };
         getRating();
 
         function getRating() {
-            var movieRating = _getCache(params.id);
-            if (movieRating) {
-                return _showRating(movieRating[params.id]);
+            var movieRatingData = _getCache(params.id); // Отримуємо дані для конкретного фільму
+            if (movieRatingData) {
+                return _showRating(movieRatingData); // Передаємо дані фільму
             } else {
                 searchRating();
             }
@@ -26,22 +32,31 @@
 
         function searchRating() {
             let mainUrl;
-            if (card.imdb_id) {
-                const type = card.type === 'movie' ? 'movie' : 'show';
-                mainUrl = `https://api.mdblist.com/imdb/${type}/${encodeURIComponent(card.imdb_id)}?apikey=${MDblistApiKey}&append_to_response=keyword&format=json`;
-            }
+            // card.imdb_id вже перевірено на вході в rating_imdb
+            // і гарантовано існує на цей момент
+            const type = card.type === 'movie' ? 'movie' : 'show';
+            mainUrl = `https://api.mdblist.com/imdb/${type}/${encodeURIComponent(card.imdb_id)}?apikey=${MDblistApiKey}&append_to_response=keyword&format=json`;
 
             const backupUrl = 'https://imdb.aartzz.pp.ua/rating?id=' + encodeURIComponent(card.imdb_id);
 
             function fetchRating(url, isMain) {
                 network.clear();
-                network.timeout(15000);
+                network.timeout(5000); // Встановлено таймаут 5 секунд
                 network.silent(url, function (json) {
                     if (json) {
                         let ratingValue;
-                        if (isMain && json.ratings && json.ratings[0] && json.ratings[0].value !== undefined) {
-                            ratingValue = json.ratings[0].value;
-                        } else if (!isMain && json.rating !== undefined) {
+                        if (isMain) { // Обробка відповіді від api.mdblist.com
+                            if (json.ratings && Array.isArray(json.ratings)) {
+                                const imdbRatingObject = json.ratings.find(rating => rating.source === 'imdb');
+                                if (imdbRatingObject && imdbRatingObject.value !== undefined) {
+                                    ratingValue = imdbRatingObject.value;
+                                } else {
+                                    // console.log('IMDB Plugin: IMDb source not found or value missing in main API ratings. JSON:', json);
+                                }
+                            } else {
+                                // console.log('IMDB Plugin: json.ratings is missing or not an array in main API response. JSON:', json);
+                            }
+                        } else if (json.rating !== undefined) { // Обробка відповіді від резервного API (imdb.aartzz.pp.ua)
                             ratingValue = json.rating;
                         }
 
@@ -52,71 +67,69 @@
                             });
                             return _showRating(movieRating);
                         } else if (isMain) {
-                            // Якщо в основному API немає рейтингу, використовуємо резервний
+                            // Якщо ratingValue не визначено після спроби основного API, перемикаємося на резервний
+                            // console.log('IMDB Plugin: ratingValue is undefined after processing main API. Attempting backup.');
                             fetchRating(backupUrl, false);
                         } else {
-                            showError("IMDB: Рейтинг не знайдено.");
+                            showError("Рейтинг не знайдено на резервному API.");
                         }
-                    } else if (isMain) {
+                    } else if (isMain) { // json від основного API порожній (null або undefined)
+                        // console.log('IMDB Plugin: Main API returned empty or null response. Attempting backup.');
                         fetchRating(backupUrl, false);
                     } else {
-                        showError("IMDB: Помилка отримання даних.");
+                        showError("Помилка отримання даних з резервного API (порожня відповідь).");
                     }
-                }, function (a, c) {
+                }, function (a, c) { // Колбек помилки
                     if (isMain) {
+                        // console.log('IMDB Plugin: Error fetching from main API. Status: ' + a + ', Error: ' + c + '. Attempting backup.');
                         fetchRating(backupUrl, false);
                     } else {
-                        showError(network.errorDecode(a, c));
+                        showError("Помилка запиту до резервного API: " + network.errorDecode(a, c));
                     }
                 });
             }
 
-            if (mainUrl) {
-                fetchRating(mainUrl, true);
-            } else {
-                fetchRating(backupUrl, false);
-            }
+            // Завжди намагаємося спочатку основний URL, оскільки imdb_id перевірено
+            fetchRating(mainUrl, true);
         }
 
-        function showError(error) {
-            Lampa.Noty.show('IMDB: ' + error);
+        function showError(error_message) {
+            Lampa.Noty.show('IMDB: ' + error_message);
         }
 
-        function _getCache(movie) {
+        function _getCache(movie_id_key) {
             var timestamp = new Date().getTime();
             var cache = Lampa.Storage.cache('imdb_rating', 500, {}); // 500 - ліміт ключів
-            if (cache[movie]) {
-                if ((timestamp - cache[movie].timestamp) > params.cache_time) {
-                    delete cache[movie];
+            if (cache[movie_id_key]) {
+                if ((timestamp - cache[movie_id_key].timestamp) > params.cache_time) {
+                    delete cache[movie_id_key];
                     Lampa.Storage.set('imdb_rating', cache);
-                    return false;
+                    return false; // Запис застарів
                 }
-            } else return false;
-            return cache;
+                return cache[movie_id_key]; // Повертаємо дані для конкретного фільму
+            }
+            return false; // Запису немає
         }
 
-        function _setCache(movie, data) {
-            var timestamp = new Date().getTime();
+        function _setCache(movie_id_key, data_to_cache) {
             var cache = Lampa.Storage.cache('imdb_rating', 500, {});
-            if (!cache[movie]) {
-                cache[movie] = data;
-                Lampa.Storage.set('imdb_rating', cache);
-            } else {
-                if ((timestamp - cache[movie].timestamp) > params.cache_time) {
-                    data.timestamp = timestamp;
-                    cache[movie] = data;
-                    Lampa.Storage.set('imdb_rating', cache);
-                } else data = cache[movie];
-            }
-            return data;
+            // data_to_cache вже містить актуальний timestamp, встановлений при отриманні рейтингу
+            cache[movie_id_key] = data_to_cache;
+            Lampa.Storage.set('imdb_rating', cache);
+            return data_to_cache; // Повертаємо дані, які щойно зберегли
         }
 
         function _showRating(data) {
-            if (data) {
-                var imdb_rating = !isNaN(data.imdb) && data.imdb !== null ? parseFloat(data.imdb).toFixed(1) : '0.0';
+            // Переконуємося, що 'data' існує і має властивість 'imdb'
+            if (data && data.imdb !== undefined && data.imdb !== null) {
+                var imdb_rating = !isNaN(parseFloat(data.imdb)) ? parseFloat(data.imdb).toFixed(1) : '0.0';
                 var render = Lampa.Activity.active().activity.render();
                 $('.wait_rating', render).remove();
                 $('.rate--imdb', render).removeClass('hide').find('> div').eq(0).text(imdb_rating);
+            } else {
+                // console.log('IMDB Plugin: _showRating called with invalid data or no imdb rating.', data);
+                // Якщо рейтингу немає, можливо, варто приховати блок або показати N/A
+                // Поточна логіка просто нічого не оновить, якщо data.imdb недійсний
             }
         }
     }
@@ -124,8 +137,10 @@
     function startPlugin() {
         window.rating_plugin = true;
         Lampa.Listener.follow('full', function (e) {
-            if (e.type == 'complite') {
+            // Перевіряємо наявність e.data та e.data.movie перед використанням
+            if (e.type == 'complite' && e.data && e.data.movie) {
                 var render = e.object.activity.render();
+                // Перевірка, чи вже є елемент рейтингу і чи не запущено очікування
                 if ($('.rate--imdb', render).hasClass('hide') && !$('.wait_rating', render).length) {
                     $('.info__rate', render).after('<div style="width:2em;margin-top:1em;margin-right:1em" class="wait_rating"><div class="broadcast__scan"><div></div></div><div>');
                     rating_imdb(e.data.movie);
@@ -134,5 +149,7 @@
         });
     }
 
-    if (!window.rating_plugin) startPlugin();
+    if (!window.rating_plugin) {
+        startPlugin();
+    }
 })();
