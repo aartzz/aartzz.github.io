@@ -31,7 +31,7 @@
                 mainUrl = `https://api.mdblist.com/imdb/${type}/${encodeURIComponent(card.imdb_id)}?apikey=${MDblistApiKey}&append_to_response=keyword&format=json`;
             }
 
-            const backupUrl = 'https://imdb.doladu.net.ua/rating?id=' + encodeURIComponent(card.imdb_id);
+            const backupUrl = 'https://imdb.aartzz.pp.ua/rating?id=' + encodeURIComponent(card.imdb_id);
 
             function fetchRating(url, isMain) {
                 network.clear();
