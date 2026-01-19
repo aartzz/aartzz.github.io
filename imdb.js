@@ -37,21 +37,35 @@ Made by aartzz (aartzz.pp.ua)
         }
 
         function searchRating() {
-            const apiUrl = `https://rest.imdbapi.dev/v2/titles/${encodeURIComponent(card.imdb_id)}`;
+            // Шлях згідно зі Swagger: /titles/{titleId}
+            const apiUrl = `https://api.imdbapi.dev/titles/${encodeURIComponent(card.imdb_id)}`;
 
             network.clear();
             network.timeout(8000);
             network.silent(apiUrl, function (json) {
-                if (json && json.rating && json.rating.aggregate_rating !== undefined) {
-                    const ratingValue = json.rating.aggregate_rating;
+                // ПЕРЕВІРКА НОВОЇ СТРУКТУРИ:
+                // Згідно з визначенням imdbapiTitle, рейтинг лежить у json.rating.aggregateRating
+                if (json && json.rating && json.rating.aggregateRating !== undefined) {
+                    const ratingValue = json.rating.aggregateRating;
                     const movieRating = _setCache(params.id, {
                         imdb: ratingValue,
                         timestamp: new Date().getTime()
                     });
                     _showRating(movieRating);
                 } else {
-                    showError("IMDB: 404 Not found.");
-                    console.log('IMDB Plugin: Rating not found in API response', json);
+                    // Додаткова перевірка, якщо API раптом повертає масив (іноді буває при batch get)
+                    if (Array.isArray(json) && json[0] && json[0].rating) {
+                         const ratingValue = json[0].rating.aggregateRating;
+                         const movieRating = _setCache(params.id, {
+                            imdb: ratingValue,
+                            timestamp: new Date().getTime()
+                        });
+                        _showRating(movieRating);
+                        return;
+                    }
+                    
+                    showError("IMDB: Rating not found.");
+                    console.log('IMDB Plugin: Invalid API response structure', json);
                 }
             }, function (a, c) {
                 showError("IMDB: " + network.errorDecode(a, c));
@@ -89,8 +103,6 @@ Made by aartzz (aartzz.pp.ua)
                 var render = Lampa.Activity.active().activity.render();
                 $('.wait_rating', render).remove();
                 $('.rate--imdb', render).removeClass('hide').find('> div').eq(0).text(imdb_rating);
-            } else {
-                console.log('IMDB Plugin: _showRating called with invalid data or no imdb rating.', data);
             }
         }
     }
