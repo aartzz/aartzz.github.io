@@ -1,3 +1,20 @@
+/*
+  _    _         ______ _ _               
+ | |  | |  /\   |  ____(_) |              
+ | |  | | /  \  | |__   _| |_ __ ___  ___ 
+ | |  | |/ /\ \ |  __| | | | '_ ` _ \/ __|
+ | |__| / ____ \| |    | | | | | | | \__ \
+  \____/_/    \_\_|    |_|_|_| |_| |_|___/
+
+------
+
+This plugin is using UAFilms API - An aggregator of movies and TV series that combines content from multiple ukrainan providers and provides a convenient interface for searching and viewing.
+
+UAFilms Home Page - https://films.aartzz.pp.ua
+Telegram Channel - https://t.me/uafilms_official
+Source Code - https://github.com/uafilms
+*/
+
 (function () {
   "use strict";
 
@@ -13,7 +30,6 @@
 
     const wrapper = document.createElement("div");
     wrapper.className = "comments-tree-item";
-    // Замість фіксованих px використовуємо rem для кращого масштабування
     if (isReply) wrapper.style.marginLeft = "2.5rem";
 
     wrapper.innerHTML = `
@@ -86,7 +102,6 @@
     if (!document.getElementById("bfilms-comment-style")) {
       const styleEl = document.createElement("style");
       styleEl.id = "bfilms-comment-style";
-      // Оптимізовані стилі під телевізори (збільшені розміри та контрастність)
       styleEl.textContent = `
         .bfilms-comments-container { padding: 1rem; }
         .comment-wrap { display: flex; margin-bottom: 1.5rem; }
@@ -100,8 +115,6 @@
         .comment-text .text { color: #eee; line-height: 1.6; font-size: 1.4rem; white-space: pre-wrap; word-break: break-word; }
         .comment-footer { margin-top: 1rem; font-size: 1.1rem; opacity: 0.6; color: #ffd700; }
         .rc-children { border-left: 3px solid #444; margin-top: 1rem; }
-        
-        /* Адаптація під модалку Lampa */
         .modal__content .comment-list { max-width: 100%; }
       `;
       document.head.appendChild(styleEl);
@@ -148,7 +161,6 @@
           }
         });
 
-        // Додаємо кнопку. Перевіряємо обидва варіанти розміщення для сумісності з різними версіями Lampa
         if($(".full-start-new__buttons").length) {
             $(".full-start-new__buttons").append(btn);
         } else {
@@ -158,7 +170,6 @@
     });
   }
 
-  // Чекаємо на повне завантаження Lampa
   if (window.Lampa) {
     if (!window.bfilms_comments_plugin) startPlugin();
   } else {
